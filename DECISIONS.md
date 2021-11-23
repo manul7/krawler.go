@@ -2,3 +2,4 @@
 2. CLI framework allows easy addition of flags if needed. For example, I can pass flag to clean existing destination directory without asking.
 3. I use "filepath" instead of "path" to achieve portability, it's recommeded.
 4. I use "github.com/PuerkitoBio/goquery" to parse HTML content and extract links, standard net.html library looks too low level.
+5. I use map[string]bool as cache due to simplicity. Probably diskv can be an alternative.

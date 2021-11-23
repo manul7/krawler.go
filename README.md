@@ -17,7 +17,19 @@ Does not necessary to implement all listed above, just do some (more important f
 
 ---
 # How to build
-TBD
+1. Install Go Development Enviromnent as described [here](https://go.dev/doc/install)
+2. Clone project's source code
+3. Run:
+```
+cd <project directory>
+go build 
+```
 
 # How to run
-TBD
+There are two ways to run this app do exist:
+
+1. If you have GO development environment installed you can clone this project and run:
+```
+cd <project directory>
+go run ./app.go <Target URL> <Path to output directory>
+```
