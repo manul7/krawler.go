@@ -8,7 +8,10 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
+	"sync"
+
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/urfave/cli/v2"
