@@ -76,23 +76,37 @@ func (u *myURL) getURLs() []string {
 // TODO:How to deal with invalid SSL certs?
 
 // Process input arguments
-func parse_arguments(c *cli.Context) (string, string, error) {
+func parse_arguments(c *cli.Context) (url.URL, string, error) {
 			if c.Args().Len() < 2 {
-		log.Printf("Please provide all required arguments: %v\n", c.App.UsageText)
-		return "", "", nil
+		log.Fatalf("Please provide all required arguments: %v\n", c.App.UsageText)
 			}
-	base_url := c.Args().Get(0)
+	inputURL := c.Args().Get(0)
 
 			dst := c.Args().Get(1)
 			if dst == "" {
-		log.Printf("Please provide non empty output path")
-		return "", "", nil
+		log.Fatal("Please provide non empty output path")
 	}
 
-	_, err := url_parse(base_url)
+	baseURL, err := buildBaseUrl(&inputURL)
 	if err != nil {
 		log.Fatal("Cannot parse URL, please provide correct URL")
-		return "", "", err
+	}
+
+	return baseURL, dst, nil
+}
+
+// Build BaseURL for crawler
+func buildBaseUrl(s *string) (url.URL, error) {
+	uri, err := url.Parse(*s)
+	if err != nil {
+		log.Fatal(err)
+		return *uri, err
+	}
+	// In case when no scheme provided - add default "HTTP"
+	if uri.Scheme == "" {
+		uri.Scheme = "http"
+	}
+	return *uri, nil
 	}
 
 	return base_url, dst, nil
@@ -124,7 +138,7 @@ func crawl_cmd(c *cli.Context) error {
 			}
 	ch := make(chan []string, 4)
 
-	log.Printf("Base URL: %q", base_url)
+	log.Printf("Base URL: %q", base_url.String())
 	log.Printf("Output dir: %q", dst)
 
 			createDstDir(dst)
