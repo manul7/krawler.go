@@ -1,19 +1,18 @@
 # Task description
-- implement recursive web-crawler of the site.
-- crawler is a command-line tool that accept starting URL and destination directory
-- crawler download the initial URL and look to links inside the original document (recursively)
-- crawler does not walk to link outside initial url (if starting link is https://start.url/abc, then it goes to https://start.url/abc/123 and https://start.url/abc/456, but skip https://another.domain/ and https://start.url/def)
-- crawler should correctly process Ctrl+C hotkey
-- crawler should be parallel
-- crawler should support continue to load if the destination directory already has loaded data (if we cancel the download and then continue).
+Implement recursive web-crawler of the site.
+1. Crawler is a command-line tool that accept starting URL and destination directory
+2. Crawler downloads starting URL and searches for links inside of it
+3. Crawler does not walk outside of initial URL, for example if starting URL is "https://start.url/abc", then it goes to "https://start.url/abc/123" and "https://start.url/abc/456", but skips "https://another.domain/" or "https://start.url/def".
+4. Crawler should correctly process Ctrl+C hotkey
+5. Crawler should be parallel
+6. Crawler should support continue to load if the destination directory already has loaded data (if we cancel the download and then continue).
+
+# Note
+In general, it's very similar to `wget --mirror` with few extra options.
+Does not necessary to implement all listed above, just do some (more important from your point of view) part, but take into account to do it in the way where every listed above is possible to add by extending your program without re-writing from scratch.
 
 # Timeframe for the task
 4 hours.
-
-# Note
-In general, it's very similar to "wget --mirror" (with few extra options).
-Does not necessary to implement all listed above, just do some (more important from your point of view) part, but take to account to do it in the way where every listed above is possible to add by extending your program (without re-writing from scratch)".
-
 
 ---
 # How to build
