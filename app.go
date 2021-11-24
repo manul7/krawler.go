@@ -15,18 +15,8 @@ import (
 )
 
 type myURL struct {
-	url string
-	body                    []byte
-}
-// Parse & check provided URL string
-func url_parse(s string) (*url.URL, error) {
-	uri, err := url.Parse(s)
-
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-	return uri, nil
+	url  url.URL
+	body []byte
 }
 
 // Create output directory for fetched content
@@ -41,20 +31,24 @@ func createDstDir(p string) {
 }
 
 // Fetch one URL per time and send page body to next step
-func (u *myURL) fetch() {
-	log.Printf("Fetching %v", u.url)
-	resp, err := http.Get(u.url)
+func (u *myURL) fetch() error {
+	log.Printf("Fetching %v", u.url.String())
+	resp, err := http.Get(u.url.String())
 	if err != nil {
-		log.Fatalln(err)
+		log.Print(err)
+		return err
 	}
+
 	// Read response body and close stream
 	b, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		log.Fatalf("error while reading %s: %v", u.url, err)
-		return
+		log.Fatalf("error while reading %s: %v", u.url.String(), err)
+		return err
 	}
+
 	u.body = b
+	return nil
 }
 
 // Parse HTML body and extrac HREFs
@@ -109,34 +103,61 @@ func buildBaseUrl(s *string) (url.URL, error) {
 	return *uri, nil
 	}
 
-	return base_url, dst, nil
+// Save page content into file
+func (u *myURL) saveContent(dst *string) {
+	resultPath := filepath.Join(*dst, u.url.Path)
+	createDstDir(resultPath)
+	log.Printf("Saving to %v", resultPath)
+	// write the whole body at once
+	outFilePath := filepath.Join(resultPath, "index.html")
+	err := ioutil.WriteFile(outFilePath, u.body, 0644)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Main URL-processing function
-func crawl(url string, ch chan []string) {
-	var extracted []string
-	u := myURL{url: url}
-	u.fetch()
-	extracted = u.getURLs()
-	log.Printf("Saving data from %v", u.url)
-	ch <- extracted
+func crawl(dst *string, url *url.URL, ch chan []string, wg *sync.WaitGroup) {
+	// Will decrement when all crawling functions finished
+	defer wg.Done()
+	u := myURL{url: *url}
+	err := u.fetch()
+
+	if err != nil {
+		log.Printf("Error while fetching: %v", err)
+		return
+	}
+
+	log.Printf("Saving data from %v", u.url.String())
+	u.saveContent(dst)
+	ch <- u.getURLs()
 }
 
 // Validate URL string against rules
-func check_url(base_url *string, link *string) error {
-	log.Printf("LINK: %v. HTTP? %v", link, strings.HasPrefix("http", *link))
-	if !strings.HasPrefix(*base_url, *link) && !strings.HasPrefix("http", *link) {
-		*link = *base_url + *link
+func isInScope(baseUrl *url.URL, link *url.URL) bool {
+	if link.Host == "" {
+		link.Host = baseUrl.Host
+		link.Scheme = baseUrl.Scheme
 	}
-	_, err := url_parse(*link)
-	return err
+
+	if link.Host != baseUrl.Host {
+		log.Printf("Error: URL does not belong to starting host: %v", link.Host)
+		return false
 	}
+	if !strings.HasPrefix(link.String(), baseUrl.String()) {
+		log.Printf("Error: URL does not belong to base URL: %v | %v", baseUrl.String(), link.String())
+		return false
+	}
+	return true
+}
+
 func crawl_cmd(c *cli.Context) error {
 	base_url, dst, err := parse_arguments(c)
 	if err != nil {
 		panic("Error. Please check input params")
 			}
-	ch := make(chan []string, 4)
+	ch := make(chan []string, 2)
+	var wg sync.WaitGroup
 
 	log.Printf("Base URL: %q", base_url.String())
 	log.Printf("Output dir: %q", dst)
@@ -147,25 +168,32 @@ func crawl_cmd(c *cli.Context) error {
 	signal.Notify(signals_ch, os.Interrupt)
 	// Send base_url for processing
 	// TODO: Looks ugly, need to find better solution
-	go func(b string) {
-		log.Printf("Sending base URL %v", b)
-		ch <- []string{b}
-	}(base_url)
+	go func(b string, wg sync.WaitGroup) { ch <- []string{b} }(base_url.String(), wg)
 
 	for {
 		select {
+		// Incoming URLs handler
 		case links := <-ch:
 			for _, link := range links {
-				err = check_url(&base_url, &link)
+				uri, err := url.Parse(link)
 				if err != nil {
-					log.Printf("Incorrect URL: %v, %v", link, err)
+					log.Printf("Error: Incorrect URI: %v", link)
 					continue
 				}
 
-				go crawl(link, ch)
+				inScope := isInScope(&base_url, uri)
+				if !inScope {
+					continue
 			}
+				wg.Add(1)
+				go crawl(&dst, uri, ch, &wg)
+			}
+			// wg.Wait()
+		// Ctrl-C handler
 		case <-signals_ch:
 			log.Println("Shutting down...")
+			close(ch)
+			wg.Wait()
 			return nil
 		}
 	}
